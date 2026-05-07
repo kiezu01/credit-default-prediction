@@ -1,0 +1,56 @@
+[
+  {
+    "Model": "GBT (LightGBM)",
+    "Dataset": "DS1: Home Credit",
+    "AUC_ROC": 0.9982914402173912,
+    "AUC_PR": 0.9811118838535581,
+    "F1": 0.9230769230769231,
+    "Brier": 0.011797480176022161,
+    "Train_Time_s": 1.27
+  },
+  {
+    "Model": "GBT (LightGBM)",
+    "Dataset": "DS2: Give Me Credit",
+    "AUC_ROC": 0.7799687255043112,
+    "AUC_PR": 0.24532847843473438,
+    "F1": 0.16744186046511628,
+    "Brier": 0.25521969588000726,
+    "Train_Time_s": 0.7
+  },
+  {
+    "Model": "Logistic Regression",
+    "Dataset": "DS1: Home Credit",
+    "AUC_ROC": 0.9990658967391305,
+    "AUC_PR": 0.9899843081246497,
+    "F1": 0.9212827988338192,
+    "Brier": 0.01018838658703606,
+    "Train_Time_s": 0.07
+  },
+  {
+    "Model": "Logistic Regression",
+    "Dataset": "DS2: Give Me Credit",
+    "AUC_ROC": 0.8840884004415223,
+    "AUC_PR": 0.48877486963071964,
+    "F1": 0.33746130030959753,
+    "Brier": 0.14785122014401908,
+    "Train_Time_s": 0.07
+  },
+  {
+    "Model": "Stacked Ensemble",
+    "Dataset": "DS1: Home Credit",
+    "AUC_ROC": 0.9990455163043478,
+    "AUC_PR": 0.989802647133363,
+    "F1": 0.9240121580547113,
+    "Brier": 0.010982882035949089,
+    "Train_Time_s": 28.6
+  },
+  {
+    "Model": "Stacked Ensemble",
+    "Dataset": "DS2: Give Me Credit",
+    "AUC_ROC": 0.8474668458351329,
+    "AUC_PR": 0.3681210622529161,
+    "F1": 0.3085399449035813,
+    "Brier": 0.08678117811273514,
+    "Train_Time_s": 24.33
+  }
+]
