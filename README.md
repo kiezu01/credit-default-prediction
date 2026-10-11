@@ -25,7 +25,7 @@ Comparative study of three credit scoring approaches on two credit datasets, wit
 | Stacked Ensemble | Give Me Some Credit | 0.847 | 0.368 | **0.087** |
 | LightGBM | Give Me Some Credit | 0.780 | 0.245 | 0.255 |
 
-**Takeaway:** the stacked ensemble gives the best-calibrated probabilities (lowest Brier score on both datasets), which matters when scores feed pricing or collection decisions.
+**Takeaway:** on the harder, more imbalanced dataset, Logistic Regression ranks risk best (highest AUC-ROC and AUC-PR), while the stacked ensemble gives the best-calibrated probabilities (lowest Brier score), which matters when scores feed pricing or collection decisions.
 
 > Note: the two datasets are simulated to match the schema and distributions of the Kaggle *Home Credit Default Risk* and *Give Me Some Credit* datasets. Results on the Home Credit–style dataset are near-perfect (AUC ≈ 0.999) and should not be read as real-world performance.
 
