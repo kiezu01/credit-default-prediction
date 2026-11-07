@@ -114,10 +114,10 @@ def preprocess(X_train, X_test, y_train, apply_smote=True):
 #  2. MODEL DEFINITIONS
 # ═══════════════════════════════════════════════════════════════════════════
 
-def build_lgbm(scale_pos_weight=10):
+def build_lgbm(scale_pos_weight=10, n_estimators=500):
     """Gradient Boosted Tree — LightGBM (Lepenioti: ML/Data Mining group)"""
     return lgb.LGBMClassifier(
-        n_estimators=500,
+        n_estimators=n_estimators,
         learning_rate=0.05,
         num_leaves=63,
         max_depth=6,
@@ -222,16 +222,30 @@ def run_experiment(X, y, ds_name, imbalance_ratio=10):
     results = {}
 
     # ── Algo 1: LightGBM ──────────────────────────────────────────────────
+    # Early stopping must never look at the test set, otherwise the number of
+    # trees is tuned on the data we report on. Hold out a stratified
+    # validation slice of the *training* data (before SMOTE, so it keeps the
+    # real class mix) and stop on that instead.
     print("\n[1] Training LightGBM (Gradient Boosted Tree)...")
     t0 = time.time()
-    lgbm = build_lgbm(scale_pos_weight=imbalance_ratio)
-    lgbm.fit(
-        X_tr_res, y_tr_res,
-        eval_set=[(X_te_sc, y_te)],
+    X_fit, X_val, y_fit, y_val = train_test_split(
+        X_tr, y_tr, test_size=0.15, random_state=42, stratify=y_tr
+    )
+    _, X_fit_res, y_fit_res, X_val_sc, _ = preprocess(
+        X_fit, X_val, y_fit, apply_smote=True
+    )
+    lgbm_es = build_lgbm(scale_pos_weight=imbalance_ratio)
+    lgbm_es.fit(
+        X_fit_res, y_fit_res,
+        eval_set=[(X_val_sc, y_val)],
         callbacks=[lgb.early_stopping(50, verbose=False), lgb.log_evaluation(-1)]
     )
+    best_trees = max(int(lgbm_es.best_iteration_ or 0), 1)
+    # Refit on the full training split with the selected number of trees.
+    lgbm = build_lgbm(scale_pos_weight=imbalance_ratio, n_estimators=best_trees)
+    lgbm.fit(X_tr_res, y_tr_res)
     t_lgbm = time.time() - t0
-    print(f"   Training time: {t_lgbm:.2f}s | Trees: {lgbm.best_iteration_}")
+    print(f"   Training time: {t_lgbm:.2f}s | Trees (early-stopped on validation): {best_trees}")
     results['LightGBM'] = evaluate(lgbm, X_te_sc, y_te, 'LightGBM (Gradient Boosted Tree)')
 
     # ── Algo 2: Logistic Regression ───────────────────────────────────────
@@ -247,7 +261,7 @@ def run_experiment(X, y, ds_name, imbalance_ratio=10):
     print("\n[3] Training Stacked Ensemble (LightGBM + LR → meta-LR)...")
     t0 = time.time()
     stack = build_stacked_ensemble(
-        build_lgbm(scale_pos_weight=imbalance_ratio),
+        build_lgbm(scale_pos_weight=imbalance_ratio, n_estimators=best_trees),
         build_lr()
     )
     stack.fit(X_tr_res, y_tr_res)
