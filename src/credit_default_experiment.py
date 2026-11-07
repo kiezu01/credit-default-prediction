@@ -144,7 +144,6 @@ def build_lr():
         max_iter=1000,
         solver='lbfgs',
         random_state=42,
-        n_jobs=-1
     )
 
 def build_stacked_ensemble(lgbm_model, lr_model):
