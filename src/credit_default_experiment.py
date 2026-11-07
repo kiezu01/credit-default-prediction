@@ -45,7 +45,7 @@ PROJECT_DIR = os.path.dirname(SCRIPT_DIR)
 DATASET1_PATH = os.path.join(PROJECT_DIR, 'data/dataset1_homecredit.csv')
 DATASET2_PATH = os.path.join(PROJECT_DIR, 'data/dataset2_givemecredit.csv')
 FIGURES_DIR = os.path.join(PROJECT_DIR, 'figures')
-SUMMARY_PATH = os.path.join(PROJECT_DIR, 'results_summary.json')
+SUMMARY_PATH = os.path.join(PROJECT_DIR, "results", "results_summary.json")
 os.makedirs(FIGURES_DIR, exist_ok=True)
 
 # ─── Color palette ──────────────────────────────────────────────────────────
