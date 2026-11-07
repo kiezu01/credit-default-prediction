@@ -43,6 +43,7 @@ from sklearn.metrics import (
 )
 from sklearn.calibration import CalibratedClassifierCV
 from imblearn.over_sampling import SMOTE
+from imblearn.pipeline import Pipeline as ImbPipeline
 import shap
 
 # Project-relative paths (portable across machines)
@@ -114,7 +115,13 @@ def preprocess(X_train, X_test, y_train, apply_smote=True):
 #  2. MODEL DEFINITIONS
 # ═══════════════════════════════════════════════════════════════════════════
 
-def build_lgbm(scale_pos_weight=10, n_estimators=500):
+# Class imbalance is handled in exactly one place: SMOTE on the training data.
+# The models therefore must NOT reweight classes again (no scale_pos_weight,
+# no class_weight='balanced'). Doing both pushes predicted probabilities far
+# above the true default rate, which ruins calibration (Brier) and, for
+# LightGBM, makes validation log-loss worsen from the second tree onwards.
+
+def build_lgbm(n_estimators=500):
     """Gradient Boosted Tree — LightGBM (Lepenioti: ML/Data Mining group)"""
     return lgb.LGBMClassifier(
         n_estimators=n_estimators,
@@ -126,7 +133,6 @@ def build_lgbm(scale_pos_weight=10, n_estimators=500):
         colsample_bytree=0.8,
         reg_alpha=0.1,
         reg_lambda=0.1,
-        scale_pos_weight=scale_pos_weight,   # handle class imbalance
         random_state=42,
         verbose=-1,
         n_jobs=-1
@@ -137,7 +143,6 @@ def build_lr():
     return LogisticRegression(
         C=0.1,
         max_iter=1000,
-        class_weight='balanced',   # handle class imbalance
         solver='lbfgs',
         random_state=42,
         n_jobs=-1
@@ -149,11 +154,24 @@ def build_stacked_ensemble(lgbm_model, lr_model):
     Level-0: LightGBM + Logistic Regression
     Level-1: Logistic Regression as meta-learner
     Uses cross-val predictions (out-of-fold) to train meta-learner → avoids leakage
+
+    Each base model is wrapped in an imblearn pipeline so SMOTE runs inside
+    every CV fold, on the fold's training part only. The ensemble itself is
+    fitted on the original (non-resampled) training data, so:
+      * synthetic minority points never land in a held-out fold, and
+      * the meta-learner sees the real class mix and learns calibrated
+        probabilities on top of the (over-confident) SMOTE-trained models.
     """
+    def with_smote(model):
+        return ImbPipeline([
+            ('smote', SMOTE(random_state=42, k_neighbors=5)),
+            ('model', model),
+        ])
+
     return StackingClassifier(
         estimators=[
-            ('lgbm', lgbm_model),
-            ('lr',   lr_model),
+            ('lgbm', with_smote(lgbm_model)),
+            ('lr',   with_smote(lr_model)),
         ],
         final_estimator=LogisticRegression(
             C=1.0, max_iter=1000, random_state=42
@@ -204,7 +222,7 @@ def evaluate(model, X_test, y_test, model_name, threshold=0.5):
 #  4. FULL EXPERIMENT ON ONE DATASET
 # ═══════════════════════════════════════════════════════════════════════════
 
-def run_experiment(X, y, ds_name, imbalance_ratio=10):
+def run_experiment(X, y, ds_name):
     print(f"\n{'═'*60}")
     print(f"  EXPERIMENT: {ds_name}")
     print(f"{'═'*60}")
@@ -234,7 +252,7 @@ def run_experiment(X, y, ds_name, imbalance_ratio=10):
     _, X_fit_res, y_fit_res, X_val_sc, _ = preprocess(
         X_fit, X_val, y_fit, apply_smote=True
     )
-    lgbm_es = build_lgbm(scale_pos_weight=imbalance_ratio)
+    lgbm_es = build_lgbm()
     lgbm_es.fit(
         X_fit_res, y_fit_res,
         eval_set=[(X_val_sc, y_val)],
@@ -242,7 +260,7 @@ def run_experiment(X, y, ds_name, imbalance_ratio=10):
     )
     best_trees = max(int(lgbm_es.best_iteration_ or 0), 1)
     # Refit on the full training split with the selected number of trees.
-    lgbm = build_lgbm(scale_pos_weight=imbalance_ratio, n_estimators=best_trees)
+    lgbm = build_lgbm(n_estimators=best_trees)
     lgbm.fit(X_tr_res, y_tr_res)
     t_lgbm = time.time() - t0
     print(f"   Training time: {t_lgbm:.2f}s | Trees (early-stopped on validation): {best_trees}")
@@ -261,10 +279,10 @@ def run_experiment(X, y, ds_name, imbalance_ratio=10):
     print("\n[3] Training Stacked Ensemble (LightGBM + LR → meta-LR)...")
     t0 = time.time()
     stack = build_stacked_ensemble(
-        build_lgbm(scale_pos_weight=imbalance_ratio, n_estimators=best_trees),
+        build_lgbm(n_estimators=best_trees),
         build_lr()
     )
-    stack.fit(X_tr_res, y_tr_res)
+    stack.fit(X_tr_sc, y_tr)   # SMOTE happens inside each fold, see above
     t_stack = time.time() - t0
     print(f"   Training time: {t_stack:.2f}s")
     results['Stacked'] = evaluate(stack, X_te_sc, y_te, 'Stacked Ensemble (Improvement)')
@@ -518,8 +536,8 @@ if __name__ == '__main__':
     X2, y2 = load_dataset2()
 
     # Run experiments
-    results_ds1, lgbm1, X_te1, y_te1, X_tr1, sc1 = run_experiment(X1, y1, 'DS1: Home Credit', imbalance_ratio=11)
-    results_ds2, lgbm2, X_te2, y_te2, X_tr2, sc2 = run_experiment(X2, y2, 'DS2: Give Me Some Credit', imbalance_ratio=13)
+    results_ds1, lgbm1, X_te1, y_te1, X_tr1, sc1 = run_experiment(X1, y1, 'DS1: Home Credit')
+    results_ds2, lgbm2, X_te2, y_te2, X_tr2, sc2 = run_experiment(X2, y2, 'DS2: Give Me Some Credit')
 
     # Summary
     summary = print_summary_table(results_ds1, results_ds2)
