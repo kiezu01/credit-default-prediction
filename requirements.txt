@@ -1,7 +1,8 @@
-numpy
-pandas
-matplotlib
-lightgbm
-scikit-learn
-imbalanced-learn
-shap
+# Tested with Python 3.12 and the versions on the right.
+numpy>=2.0,<3            # 2.5.4
+pandas>=2.2,<4           # 3.1.1
+matplotlib>=3.8,<4       # 3.11.2
+lightgbm>=4.0,<5         # 4.7.0
+scikit-learn>=1.5,<2     # 1.9.1
+imbalanced-learn>=0.12,<1  # 0.14.2
+shap>=0.45,<1            # 0.54.1
