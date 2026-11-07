@@ -22,8 +22,14 @@ import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
-import warnings, os, time, json
+import warnings, os, sys, time, json
 warnings.filterwarnings('ignore')
+
+# The console output uses box-drawing characters (═, ─, ←). Windows consoles
+# default to a legacy code page (cp1252) and raise UnicodeEncodeError on them.
+for _stream in (sys.stdout, sys.stderr):
+    if hasattr(_stream, 'reconfigure'):
+        _stream.reconfigure(encoding='utf-8', errors='replace')
 
 import lightgbm as lgb
 from sklearn.linear_model import LogisticRegression
