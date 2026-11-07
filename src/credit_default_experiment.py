@@ -192,7 +192,12 @@ def evaluate(model, X_test, y_test, model_name, threshold=0.5):
 
     auc_roc = roc_auc_score(y_test, y_prob)
     auc_pr  = average_precision_score(y_test, y_prob)
-    f1      = f1_score(y_test, y_pred, zero_division=0)
+    # Credit-scoring conventions: Gini = 2*AUC - 1, and the Kolmogorov-Smirnov
+    # statistic = max separation between the score CDFs of goods and bads.
+    gini    = 2 * auc_roc - 1
+    fpr, tpr, _ = roc_curve(y_test, y_prob)
+    ks      = float(np.max(tpr - fpr))
+    f1     = f1_score(y_test, y_pred, zero_division=0)
     brier   = brier_score_loss(y_test, y_prob)
     report  = classification_report(y_test, y_pred, digits=4, zero_division=0)
     cm      = confusion_matrix(y_test, y_pred)
@@ -202,6 +207,8 @@ def evaluate(model, X_test, y_test, model_name, threshold=0.5):
     print(f"{'─'*55}")
     print(f"  AUC-ROC  : {auc_roc:.4f}")
     print(f"  AUC-PR   : {auc_pr:.4f}   ← primary metric (imbalanced)")
+    print(f"  Gini     : {gini:.4f}")
+    print(f"  KS       : {ks:.4f}")
     print(f"  F1-Score : {f1:.4f}")
     print(f"  Brier    : {brier:.4f}   ← calibration (lower=better)")
     print(f"\n{report}")
@@ -210,6 +217,8 @@ def evaluate(model, X_test, y_test, model_name, threshold=0.5):
         'model_name': model_name,
         'AUC_ROC': auc_roc,
         'AUC_PR':  auc_pr,
+        'Gini':    gini,
+        'KS':      ks,
         'F1':      f1,
         'Brier':   brier,
         'y_prob':  y_prob,
@@ -495,25 +504,28 @@ def plot_stacking_architecture():
 def print_summary_table(results_ds1, results_ds2):
     models = ['LightGBM', 'LR', 'Stacked']
     labels = ['GBT (LightGBM)', 'Logistic Regression', 'Stacked Ensemble']
-    print(f"\n{'═'*75}")
-    print(f"{'FINAL SUMMARY TABLE':^75}")
-    print(f"{'═'*75}")
-    print(f"{'Model':<22} {'Dataset':<30} {'AUC-ROC':>8} {'AUC-PR':>8} {'F1':>7} {'Brier':>8}")
-    print(f"{'─'*75}")
+    width = 91
+    print(f"\n{'═'*width}")
+    print(f"{'FINAL SUMMARY TABLE':^{width}}")
+    print(f"{'═'*width}")
+    print(f"{'Model':<22} {'Dataset':<30} {'AUC-ROC':>8} {'AUC-PR':>8} "
+          f"{'Gini':>7} {'KS':>7} {'F1':>7} {'Brier':>8}")
+    print(f"{'─'*width}")
     all_rows = []
     for key, label in zip(models, labels):
         for ds_label, results in [('DS1: Home Credit', results_ds1),
                                    ('DS2: Give Me Credit', results_ds2)]:
             r = results[key]
             print(f"{label:<22} {ds_label:<30} {r['AUC_ROC']:>8.4f} {r['AUC_PR']:>8.4f} "
-                  f"{r['F1']:>7.4f} {r['Brier']:>8.4f}")
+                  f"{r['Gini']:>7.4f} {r['KS']:>7.4f} {r['F1']:>7.4f} {r['Brier']:>8.4f}")
             all_rows.append({
                 'Model': label, 'Dataset': ds_label,
                 'AUC_ROC': r['AUC_ROC'], 'AUC_PR': r['AUC_PR'],
+                'Gini': r['Gini'], 'KS': r['KS'],
                 'F1': r['F1'], 'Brier': r['Brier'],
                 'Train_Time_s': round(r['train_time'], 2)
             })
-    print(f"{'═'*75}")
+    print(f"{'═'*width}")
     # Save to JSON for report
     os.makedirs(os.path.dirname(SUMMARY_PATH), exist_ok=True)
     with open(SUMMARY_PATH, 'w', encoding='utf-8') as f:
