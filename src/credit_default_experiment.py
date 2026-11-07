@@ -21,8 +21,7 @@ import pandas as pd
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
-import matplotlib.gridspec as gridspec
-import warnings, os, sys, time, json
+import argparse, warnings, os, sys, time, json
 warnings.filterwarnings('ignore')
 
 # The console output uses box-drawing characters (═, ─, ←). Windows consoles
@@ -34,14 +33,13 @@ for _stream in (sys.stdout, sys.stderr):
 import lightgbm as lgb
 from sklearn.linear_model import LogisticRegression
 from sklearn.ensemble import StackingClassifier
-from sklearn.model_selection import train_test_split, StratifiedKFold, cross_val_score
+from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
 from sklearn.metrics import (
     roc_auc_score, average_precision_score, f1_score,
     classification_report, roc_curve, precision_recall_curve,
     confusion_matrix, brier_score_loss
 )
-from sklearn.calibration import CalibratedClassifierCV
 from imblearn.over_sampling import SMOTE
 from imblearn.pipeline import Pipeline as ImbPipeline
 import shap
@@ -49,11 +47,12 @@ import shap
 # Project-relative paths (portable across machines)
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 PROJECT_DIR = os.path.dirname(SCRIPT_DIR)
-DATASET1_PATH = os.path.join(PROJECT_DIR, 'data/dataset1_homecredit.csv')
-DATASET2_PATH = os.path.join(PROJECT_DIR, 'data/dataset2_givemecredit.csv')
+DATA_DIR = os.path.join(PROJECT_DIR, 'data')
+DATASET1_PATH = os.path.join(DATA_DIR, 'dataset1_homecredit.csv')
+DATASET2_PATH = os.path.join(DATA_DIR, 'dataset2_givemecredit.csv')
+# Output locations; main() can redirect them with --out-dir.
 FIGURES_DIR = os.path.join(PROJECT_DIR, 'figures')
-SUMMARY_PATH = os.path.join(PROJECT_DIR, "results", "results_summary.json")
-os.makedirs(FIGURES_DIR, exist_ok=True)
+SUMMARY_PATH = os.path.join(PROJECT_DIR, 'results', 'results_summary.json')
 
 # ─── Color palette ──────────────────────────────────────────────────────────
 C_GBT    = '#2E75B6'   # LightGBM
@@ -348,7 +347,6 @@ def plot_metrics_comparison(results_ds1, results_ds2):
     metrics   = ['AUC_ROC', 'AUC_PR', 'F1', 'Brier']
     m_labels  = ['AUC-ROC', 'AUC-PR', 'F1-Score', 'Brier Score\n(↓ better)']
     models    = ['LightGBM', 'LR', 'Stacked']
-    m_display = ['GBT (LightGBM)', 'Logistic Regression', 'Stacked Ensemble']
     datasets  = [('DS1: Home Credit', results_ds1),
                  ('DS2: Give Me Some Credit', results_ds2)]
 
@@ -415,7 +413,7 @@ def plot_confusion_matrices(results_ds1, results_ds2):
         for col, (key, label) in enumerate(zip(model_keys, model_labels)):
             ax  = axes[row][col]
             cm  = results[key]['cm']
-            im  = ax.imshow(cm, cmap='Blues')
+            ax.imshow(cm, cmap='Blues')
             ax.set_xticks([0,1]); ax.set_yticks([0,1])
             ax.set_xticklabels(['Pred 0','Pred 1'])
             ax.set_yticklabels(['True 0','True 1'])
@@ -440,7 +438,6 @@ def plot_stacking_architecture():
                  fontsize=13, fontweight='bold', pad=15)
 
     # Level 0 models
-    box_style = dict(boxstyle='round,pad=0.5', facecolor=C_GBT, edgecolor='white', alpha=0.9)
     ax.text(2, 4.5, 'Input Features\n(X_train)', ha='center', va='center', fontsize=10,
             bbox=dict(boxstyle='round,pad=0.5', facecolor='#ECF0F1', edgecolor='#7F8C8D'))
     # Arrow
@@ -518,7 +515,8 @@ def print_summary_table(results_ds1, results_ds2):
             })
     print(f"{'═'*75}")
     # Save to JSON for report
-    with open(SUMMARY_PATH, 'w') as f:
+    os.makedirs(os.path.dirname(SUMMARY_PATH), exist_ok=True)
+    with open(SUMMARY_PATH, 'w', encoding='utf-8') as f:
         json.dump(all_rows, f, indent=2)
     return all_rows
 
@@ -526,14 +524,34 @@ def print_summary_table(results_ds1, results_ds2):
 #  MAIN
 # ═══════════════════════════════════════════════════════════════════════════
 
-if __name__ == '__main__':
+def parse_args(argv=None):
+    parser = argparse.ArgumentParser(
+        description='Credit default experiment: LightGBM vs. LR vs. stacked ensemble.')
+    parser.add_argument('--data-dir', default=DATA_DIR,
+                        help='folder holding dataset1_homecredit.csv and '
+                             'dataset2_givemecredit.csv (default: data/)')
+    parser.add_argument('--out-dir', default=PROJECT_DIR,
+                        help='where figures/ and results/ are written '
+                             '(default: the project root)')
+    parser.add_argument('--skip-shap', action='store_true',
+                        help='skip the SHAP plots (slowest step)')
+    return parser.parse_args(argv)
+
+
+def main(argv=None):
+    global FIGURES_DIR, SUMMARY_PATH
+    args = parse_args(argv)
+    FIGURES_DIR = os.path.join(args.out_dir, 'figures')
+    SUMMARY_PATH = os.path.join(args.out_dir, 'results', 'results_summary.json')
+    os.makedirs(FIGURES_DIR, exist_ok=True)
+
     print("="*60)
     print("  Credit Default Risk — Full Experiment Pipeline")
     print("="*60)
 
     # Load datasets
-    X1, y1 = load_dataset1()
-    X2, y2 = load_dataset2()
+    X1, y1 = load_dataset1(os.path.join(args.data_dir, 'dataset1_homecredit.csv'))
+    X2, y2 = load_dataset2(os.path.join(args.data_dir, 'dataset2_givemecredit.csv'))
 
     # Run experiments
     results_ds1, lgbm1, X_te1, y_te1, X_tr1, sc1 = run_experiment(X1, y1, 'DS1: Home Credit')
@@ -546,10 +564,16 @@ if __name__ == '__main__':
     print("\n[Generating figures...]")
     plot_roc_pr(results_ds1, results_ds2, y_te1, y_te2)
     plot_metrics_comparison(results_ds1, results_ds2)
-    plot_shap(lgbm1, X_te1, list(X1.columns), 'Home_Credit', 'fig3a')
-    plot_shap(lgbm2, X_te2, list(X2.columns), 'Give_Me_Credit', 'fig3b')
+    if not args.skip_shap:
+        plot_shap(lgbm1, X_te1, list(X1.columns), 'Home_Credit', 'fig3a')
+        plot_shap(lgbm2, X_te2, list(X2.columns), 'Give_Me_Credit', 'fig3b')
     plot_confusion_matrices(results_ds1, results_ds2)
     plot_stacking_architecture()
 
     print(f"\n[All experiments completed. Figures saved to {FIGURES_DIR}]")
     print(f"[Results saved to {SUMMARY_PATH}]")
+    return summary
+
+
+if __name__ == '__main__':
+    main()
