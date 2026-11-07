@@ -447,7 +447,7 @@ def plot_stacking_architecture():
                  fontsize=13, fontweight='bold', pad=15)
 
     # Level 0 models
-    ax.text(2, 4.5, 'Input Features\n(X_train)', ha='center', va='center', fontsize=10,
+    ax.text(2, 4.5, 'Input Features\n(X_train, real class mix)', ha='center', va='center', fontsize=10,
             bbox=dict(boxstyle='round,pad=0.5', facecolor='#ECF0F1', edgecolor='#7F8C8D'))
     # Arrow
     ax.annotate('', xy=(1.2, 3.2), xytext=(1.7, 4.1),
@@ -462,9 +462,9 @@ def plot_stacking_architecture():
             fontsize=9, bbox=dict(boxstyle='round,pad=0.5', facecolor=C_LR,
                                    edgecolor='white', alpha=0.9), color='white')
 
-    ax.text(1.0, 1.8, '5-Fold CV\nOut-of-Fold\nPredictions', ha='center', va='center',
+    ax.text(1.0, 1.8, 'SMOTE in each\nof 5 folds →\nOOF predictions', ha='center', va='center',
             fontsize=8, color='#555', style='italic')
-    ax.text(3.0, 1.8, '5-Fold CV\nOut-of-Fold\nPredictions', ha='center', va='center',
+    ax.text(3.0, 1.8, 'SMOTE in each\nof 5 folds →\nOOF predictions', ha='center', va='center',
             fontsize=8, color='#555', style='italic')
 
     ax.annotate('', xy=(2.0, 1.1), xytext=(1.0, 1.4),
@@ -484,10 +484,10 @@ def plot_stacking_architecture():
     ax.text(5.5, 4.5, 'Key Advantages of Stacking:', fontsize=10, fontweight='bold')
     advantages = [
         '✓ Combines complementary models (GBT + LR)',
-        '✓ 5-fold CV prevents data leakage',
+        '✓ SMOTE runs inside each fold: no synthetic leakage',
         '✓ Meta-learner learns optimal weighting',
+        '✓ Meta-learner sees real class mix → calibrated P(default)',
         '✓ Reduces variance vs. single model',
-        '✓ Inherits LightGBM\'s feature importance',
     ]
     for i, adv in enumerate(advantages):
         ax.text(5.5, 3.8 - i*0.55, adv, fontsize=9, color='#333')
