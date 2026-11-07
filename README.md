@@ -2,7 +2,7 @@
 
 Comparative study of three credit scoring approaches on two credit datasets, with class-imbalance handling and SHAP explainability. Group coursework (Master's program in Information Systems).
 
-➡️ **Full code, figures and detailed results are in [`github_repo/`](github_repo/README.md).**
+Code is in [`src/`](src/), figures in [`figures/`](figures/), metrics in [`results/results_summary.json`](results/results_summary.json) and the written reports (Vietnamese, IEEE format) in [`docs/`](docs/).
 
 ## Approach
 
@@ -36,7 +36,6 @@ Python · LightGBM · scikit-learn · imbalanced-learn (SMOTE) · SHAP · pandas
 ## How to run
 
 ```bash
-cd github_repo
 pip install -r requirements.txt
 python src/credit_default_experiment.py
 ```
