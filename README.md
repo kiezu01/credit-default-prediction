@@ -1,5 +1,7 @@
 # Credit Default Risk Prediction – LightGBM vs. Logistic Regression vs. Stacked Ensemble
 
+**English** · [Tiếng Việt](README.vi.md)
+
 [![CI](https://github.com/kiezu01/credit-default-prediction/actions/workflows/ci.yml/badge.svg)](https://github.com/kiezu01/credit-default-prediction/actions/workflows/ci.yml)
 
 A comparison of three credit scoring approaches on two credit datasets, with class-imbalance handling, calibration analysis and SHAP explainability. Group coursework for a Master's program in Information Systems, framed around the analytics taxonomy of Lepenioti et al. (2020).
